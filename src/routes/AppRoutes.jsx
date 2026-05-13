@@ -3,6 +3,7 @@ import Home from "../pages/Home";
 import About from "../pages/About";
 import Contact from "../pages/Contact";
 import NotFound from "../pages/NotFound";
+import AdminInvoices from "../pages/AdminInvoices";
 
 function Layout({ children }) {
   return (
@@ -29,6 +30,12 @@ function Layout({ children }) {
           >
             Contact
           </NavLink>
+          <NavLink
+            className={({ isActive }) => `app-link${isActive ? " active" : ""}`}
+            to="/admin/invoices"
+          >
+            Admin Invoices
+          </NavLink>
         </nav>
       </header>
 
@@ -44,6 +51,7 @@ function AppRoutes() {
         <Route path="/" element={<Home />} />
         <Route path="/about" element={<About />} />
         <Route path="/contact" element={<Contact />} />
+        <Route path="/admin/invoices" element={<AdminInvoices />} />
         <Route path="*" element={<NotFound />} />
       </Routes>
     </Layout>
