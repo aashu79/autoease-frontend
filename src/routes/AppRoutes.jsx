@@ -1,4 +1,5 @@
 import { Navigate, Route, Routes } from "react-router-dom";
+import { Spin } from "antd";
 import ProtectedRoute from "../components/ProtectedRoute";
 import { useAuth } from "../hooks/useAuth";
 import AdminDashboard from "../pages/AdminDashboard";
@@ -9,6 +10,7 @@ import AdminOverview from "../pages/admin/AdminOverview";
 import AdminPartRequests from "../pages/admin/AdminPartRequests";
 import AdminParts from "../pages/admin/AdminParts";
 import AdminProfile from "../pages/admin/AdminProfile";
+import AdminReviews from "../pages/admin/AdminReviews";
 import AdminStaff from "../pages/admin/AdminStaff";
 import AdminVendors from "../pages/admin/AdminVendors";
 import CustomerDashboard from "../pages/CustomerDashboard";
@@ -33,9 +35,17 @@ import StaffVendors from "../pages/staff/StaffVendors";
 import { getDashboardPath } from "../utils/auth";
 
 function DashboardRedirect() {
-  const { user } = useAuth();
+  const { isAuthenticated, loading, user } = useAuth();
 
-  if (!user) {
+  if (loading) {
+    return (
+      <div className="grid min-h-screen place-items-center bg-slate-50 px-4">
+        <Spin size="large" />
+      </div>
+    );
+  }
+
+  if (!isAuthenticated || !user) {
     return <Navigate to="/login" replace />;
   }
 
@@ -102,6 +112,7 @@ function AppRoutes() {
         <Route path="parts" element={<AdminParts />} />
         <Route path="part-requests" element={<AdminPartRequests />} />
         <Route path="vendors" element={<AdminVendors />} />
+        <Route path="reviews" element={<AdminReviews />} />
         <Route path="profile" element={<AdminProfile />} />
       </Route>
 

@@ -1,10 +1,17 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { authService, profileService } from "../api/services";
-import { normalizeProfile } from "../utils/auth";
+import {
+  AUTH_SESSION_CLEARED_EVENT,
+  TOKEN_KEY,
+  USER_KEY,
+  clearStoredAuth,
+  getStoredToken,
+  getTokenExpiryTime,
+  normalizeProfile,
+  storeAuthToken,
+  storeAuthUser,
+} from "../utils/auth";
 import AuthContext from "./auth-context";
-
-const TOKEN_KEY = "auth_token";
-const USER_KEY = "auth_user";
 
 function readStoredUser() {
   const rawUser = localStorage.getItem(USER_KEY);
@@ -16,46 +23,117 @@ function readStoredUser() {
   try {
     return normalizeProfile(JSON.parse(rawUser));
   } catch {
-    localStorage.removeItem(USER_KEY);
+    clearStoredAuth();
     return null;
   }
 }
 
 export function AuthProvider({ children }) {
-  const [token, setToken] = useState(() => localStorage.getItem(TOKEN_KEY) || "");
-  const [user, setUser] = useState(() => readStoredUser());
-  const [loading, setLoading] = useState(Boolean(localStorage.getItem(TOKEN_KEY)));
+  const [authState, setAuthState] = useState(() => {
+    const storedToken = getStoredToken();
+
+    return {
+      token: storedToken,
+      user: storedToken ? readStoredUser() : null,
+      loading: Boolean(storedToken),
+    };
+  });
+
+  const { token, user, loading } = authState;
 
   useEffect(() => {
+    let ignore = false;
+
     const syncStorage = async () => {
       if (!token) {
-        setLoading(false);
+        setAuthState((current) => ({ ...current, loading: false }));
         return;
       }
 
-      if (user) {
-        setLoading(false);
-        return;
-      }
+      setAuthState((current) => ({ ...current, loading: true }));
 
       try {
         const response = await profileService.getProfile();
         const profile = normalizeProfile(response.data);
 
-        setUser(profile);
-        localStorage.setItem(USER_KEY, JSON.stringify(profile));
+        storeAuthUser(profile);
+
+        if (!ignore) {
+          setAuthState({ token, user: profile, loading: false });
+        }
       } catch {
-        localStorage.removeItem(TOKEN_KEY);
-        localStorage.removeItem(USER_KEY);
-        setToken("");
-        setUser(null);
+        clearStoredAuth();
+
+        if (!ignore) {
+          setAuthState({ token: "", user: null, loading: false });
+        }
       } finally {
-        setLoading(false);
+        if (!ignore) {
+          setAuthState((current) => ({ ...current, loading: false }));
+        }
       }
     };
 
-    syncStorage();
-  }, [token, user]);
+    void syncStorage();
+
+    return () => {
+      ignore = true;
+    };
+  }, [token]);
+
+  useEffect(() => {
+    const handleSessionCleared = () => {
+      setAuthState({ token: "", user: null, loading: false });
+    };
+
+    const handleStorage = (event) => {
+      if (event.key !== TOKEN_KEY && event.key !== USER_KEY) {
+        return;
+      }
+
+      const storedToken = getStoredToken({ notifyOnExpired: true });
+      setAuthState({
+        token: storedToken,
+        user: storedToken ? readStoredUser() : null,
+        loading: Boolean(storedToken),
+      });
+    };
+
+    window.addEventListener(AUTH_SESSION_CLEARED_EVENT, handleSessionCleared);
+    window.addEventListener("storage", handleStorage);
+
+    return () => {
+      window.removeEventListener(AUTH_SESSION_CLEARED_EVENT, handleSessionCleared);
+      window.removeEventListener("storage", handleStorage);
+    };
+  }, []);
+
+  useEffect(() => {
+    const expiryTime = getTokenExpiryTime(token);
+
+    if (!token || !expiryTime) {
+      return undefined;
+    }
+
+    const expireSession = () => {
+      clearStoredAuth({ notify: true });
+      setAuthState({ token: "", user: null, loading: false });
+    };
+
+    const delay = expiryTime - Date.now();
+
+    if (delay <= 0) {
+      window.queueMicrotask(expireSession);
+      return undefined;
+    }
+
+    const timeoutId = window.setTimeout(
+      expireSession,
+      Math.min(delay, 2147483647),
+    );
+
+    return () => window.clearTimeout(timeoutId);
+  }, [token]);
 
   const login = async (values) => {
     const loginResponse = await authService.login(values);
@@ -66,50 +144,69 @@ export function AuthProvider({ children }) {
       loginResponse.data?.AccessToken ||
       "";
 
-    localStorage.setItem(TOKEN_KEY, nextToken);
-    setToken(nextToken);
+    if (!nextToken) {
+      throw new Error("Login failed because the server did not return a token.");
+    }
 
-    const profileResponse = await profileService.getProfile();
-    const profile = normalizeProfile(profileResponse.data);
+    storeAuthToken(nextToken);
 
-    localStorage.setItem(USER_KEY, JSON.stringify(profile));
-    setUser(profile);
+    try {
+      const profileResponse = await profileService.getProfile();
+      const profile = normalizeProfile(profileResponse.data);
 
-    return profile;
+      storeAuthUser(profile);
+      setAuthState({ token: nextToken, user: profile, loading: false });
+
+      return profile;
+    } catch (error) {
+      clearStoredAuth({ notify: true });
+      setAuthState({ token: "", user: null, loading: false });
+      throw error;
+    }
   };
 
   const register = async (values) => authService.register(values);
 
-  const logout = () => {
-    localStorage.removeItem(TOKEN_KEY);
-    localStorage.removeItem(USER_KEY);
-    setToken("");
-    setUser(null);
-  };
+  const logout = useCallback(() => {
+    clearStoredAuth({ notify: true });
+    setAuthState({ token: "", user: null, loading: false });
+  }, []);
 
   const refreshProfile = async () => {
     const response = await profileService.getProfile();
     const profile = normalizeProfile(response.data);
 
-    localStorage.setItem(USER_KEY, JSON.stringify(profile));
-    setUser(profile);
+    storeAuthUser(profile);
+    setAuthState((current) => ({ ...current, user: profile }));
 
     return profile;
   };
+
+  const setUser = useCallback((nextUser) => {
+    const profile = normalizeProfile(nextUser);
+
+    if (profile) {
+      storeAuthUser(profile);
+    } else {
+      localStorage.removeItem(USER_KEY);
+    }
+
+    setAuthState((current) => ({ ...current, user: profile }));
+  }, []);
 
   const value = useMemo(
     () => ({
       token,
       user,
       loading,
-      isAuthenticated: Boolean(token),
+      isAuthenticated: Boolean(token && user),
       login,
       register,
       logout,
       refreshProfile,
       setUser,
     }),
-    [token, user, loading],
+    [token, user, loading, logout, setUser],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

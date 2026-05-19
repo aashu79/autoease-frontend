@@ -388,41 +388,48 @@ function CustomerDetailDrawer({ open, onClose, customer, loading }) {
 
 function SearchCustomersPanel({ refreshKey }) {
   const [query, setQuery] = useState("");
+  const [allCustomers, setAllCustomers] = useState([]);
   const [results, setResults] = useState([]);
-  const [hasSearched, setHasSearched] = useState(false);
   const [searchLoading, setSearchLoading] = useState(false);
   const [selectedCustomer, setSelectedCustomer] = useState(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [detailLoading, setDetailLoading] = useState(false);
 
-  // Keep a ref to the active query so the refresh effect can re-run it
-  const activeQueryRef = useRef("");
-
-  const runSearch = async (searchQuery) => {
-    if (!searchQuery.trim()) return;
+  // Load all customers initially
+  const loadAllCustomers = async () => {
     try {
       setSearchLoading(true);
-      setHasSearched(true);
-      activeQueryRef.current = searchQuery.trim();
-      const response = await staffCustomerService.searchCustomers(
-        searchQuery.trim(),
-      );
-      setResults(listData(response));
+      // Trying search with empty query to get all customers, or fallback to fetching all if exists
+      const response = await staffCustomerService.searchCustomers("");
+      const data = listData(response);
+      setAllCustomers(data);
+      setResults(data);
     } catch (error) {
-      message.error(apiMessage(error, "Failed to search customers."));
-      setResults([]);
+      // In case search("") fails, fallback or handle error
+      message.error(apiMessage(error, "Failed to load customers."));
     } finally {
       setSearchLoading(false);
     }
   };
 
-  // Re-run search when refreshKey changes (after a new customer is created)
   useEffect(() => {
-    if (refreshKey > 0 && activeQueryRef.current) {
-      void runSearch(activeQueryRef.current);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    void loadAllCustomers();
   }, [refreshKey]);
+
+  useEffect(() => {
+    if (!query.trim()) {
+      setResults(allCustomers);
+      return;
+    }
+    const lowerQuery = query.toLowerCase();
+    const filtered = allCustomers.filter(
+      (c) =>
+        c.name?.toLowerCase().includes(lowerQuery) ||
+        c.email?.toLowerCase().includes(lowerQuery) ||
+        c.phone?.toLowerCase().includes(lowerQuery),
+    );
+    setResults(filtered);
+  }, [query, allCustomers]);
 
   const handleViewCustomer = async (id) => {
     try {
@@ -496,7 +503,6 @@ function SearchCustomersPanel({ refreshKey }) {
 
   return (
     <>
-      {/* Search Bar */}
       <div className="mb-5 flex flex-col gap-3 sm:flex-row">
         <Input
           size="large"
@@ -504,73 +510,27 @@ function SearchCustomersPanel({ refreshKey }) {
           prefix={<FiSearch className="text-slate-400" />}
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          onPressEnter={() => runSearch(query)}
           className="max-w-lg"
           allowClear
-          onClear={() => {
-            setResults([]);
-            setHasSearched(false);
-            activeQueryRef.current = "";
-          }}
         />
-        <Button
-          type="primary"
-          size="large"
-          icon={<FiSearch />}
-          loading={searchLoading}
-          onClick={() => runSearch(query)}
-          disabled={!query.trim()}
-        >
-          Search
-        </Button>
       </div>
 
-      {/* Results or Placeholder */}
-      {hasSearched ? (
-        <>
-          {!searchLoading && (
-            <div className="mb-3">
-              <Text type="secondary">
-                {results.length > 0
-                  ? `Found ${results.length} customer${results.length !== 1 ? "s" : ""} matching "${activeQueryRef.current}"`
-                  : `No customers found for "${activeQueryRef.current}"`}
-              </Text>
-            </div>
-          )}
-          <Table
-            rowKey="id"
-            dataSource={results}
-            columns={columns}
-            loading={searchLoading}
-            pagination={{ pageSize: 8, showSizeChanger: false }}
-            scroll={{ x: 740 }}
-            locale={{
-              emptyText: (
-                <Empty description="No customers match your search." />
-              ),
-            }}
-            onRow={(record) => ({
-              className: "cursor-pointer",
-              onDoubleClick: () => handleViewCustomer(record.id),
-            })}
-          />
-        </>
-      ) : (
-        <div className="flex flex-col items-center justify-center py-20 text-center">
-          <div className="mb-5 flex h-20 w-20 items-center justify-center rounded-full bg-slate-100">
-            <FiSearch className="text-4xl text-slate-300" />
-          </div>
-          <Title level={5} className="!mb-1 !text-slate-500">
-            Search for a Customer
-          </Title>
-          <Text className="text-slate-400">
-            Enter a name, email address, or phone number above to find
-            customers.
-          </Text>
-        </div>
-      )}
+      <Table
+        rowKey="id"
+        dataSource={results}
+        columns={columns}
+        loading={searchLoading}
+        pagination={{ pageSize: 8, showSizeChanger: true }}
+        scroll={{ x: 740 }}
+        locale={{
+          emptyText: <Empty description="No customers match your search." />,
+        }}
+        onRow={(record) => ({
+          className: "cursor-pointer",
+          onDoubleClick: () => handleViewCustomer(record.id),
+        })}
+      />
 
-      {/* Detail Drawer */}
       <CustomerDetailDrawer
         open={drawerOpen}
         onClose={() => setDrawerOpen(false)}

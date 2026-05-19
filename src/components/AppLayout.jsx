@@ -63,7 +63,7 @@ function AppLayout({ title, sections }) {
 
   const handleLogout = () => {
     logout();
-    navigate("/");
+    navigate("/login", { replace: true });
   };
 
   return (
@@ -117,7 +117,7 @@ function AppLayout({ title, sections }) {
             type="default"
             danger
           >
-            Logout
+            Sign out
           </Button>
         </div>
       </Layout.Sider>

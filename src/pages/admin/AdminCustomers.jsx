@@ -11,9 +11,17 @@ import {
   Typography,
   message,
 } from "antd";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { Controller, useForm } from "react-hook-form";
-import { FiLock, FiMail, FiPhone, FiPlus, FiRefreshCw, FiUser } from "react-icons/fi";
+import {
+  FiLock,
+  FiMail,
+  FiPhone,
+  FiPlus,
+  FiRefreshCw,
+  FiUser,
+  FiSearch,
+} from "react-icons/fi";
 import { adminService, authService } from "../../api/services";
 import DashboardSection from "../../components/dashboard/DashboardSection";
 import FormError from "../../components/form/FormError";
@@ -27,6 +35,7 @@ function AdminCustomers() {
   const [customers, setCustomers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
+  const [query, setQuery] = useState("");
 
   const {
     control,
@@ -70,6 +79,17 @@ function AdminCustomers() {
     }
   };
 
+  const filteredCustomers = useMemo(() => {
+    if (!query.trim()) return customers;
+    const lowerQuery = query.toLowerCase();
+    return customers.filter(
+      (c) =>
+        c.name?.toLowerCase().includes(lowerQuery) ||
+        c.email?.toLowerCase().includes(lowerQuery) ||
+        c.phone?.toLowerCase().includes(lowerQuery),
+    );
+  }, [customers, query]);
+
   const columns = [
     {
       title: "ID",
@@ -98,7 +118,11 @@ function AdminCustomers() {
       dataIndex: "phone",
       width: 150,
       render: (value) =>
-        value ? <a href={`tel:${value}`}>{value}</a> : <Text type="secondary">-</Text>,
+        value ? (
+          <a href={`tel:${value}`}>{value}</a>
+        ) : (
+          <Text type="secondary">-</Text>
+        ),
     },
     {
       title: "Role",
@@ -114,18 +138,38 @@ function AdminCustomers() {
       subtitle="Customer users fetched by role."
       extra={
         <Space wrap>
-          <Button type="primary" icon={<FiPlus />} onClick={() => setModalOpen(true)}>
+          <Button
+            type="primary"
+            icon={<FiPlus />}
+            onClick={() => setModalOpen(true)}
+          >
             Add Customer
           </Button>
-          <Button icon={<FiRefreshCw />} loading={loading} onClick={loadCustomers}>
+          <Button
+            icon={<FiRefreshCw />}
+            loading={loading}
+            onClick={loadCustomers}
+          >
             Refresh
           </Button>
         </Space>
       }
     >
+      <div className="mb-4">
+        <Input
+          size="middle"
+          placeholder="Search by name, email, or phone…"
+          prefix={<FiSearch className="text-slate-400" />}
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          className="max-w-sm"
+          allowClear
+        />
+      </div>
+
       <Table
         rowKey="id"
-        dataSource={customers}
+        dataSource={filteredCustomers}
         columns={columns}
         loading={loading}
         scroll={{ x: 720 }}
@@ -155,7 +199,11 @@ function AdminCustomers() {
       >
         <Divider className="!mt-3 !mb-5" />
 
-        <form onSubmit={handleSubmit(createCustomer)} className="grid gap-4" noValidate>
+        <form
+          onSubmit={handleSubmit(createCustomer)}
+          className="grid gap-4"
+          noValidate
+        >
           <div>
             <label className="form-label">Full Name</label>
             <Controller

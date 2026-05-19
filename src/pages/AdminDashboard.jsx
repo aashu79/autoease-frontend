@@ -4,11 +4,20 @@ const sections = [
   { key: "overview", label: "Overview", path: "/dashboard/admin/overview" },
   { key: "staff", label: "Staff", path: "/dashboard/admin/staff" },
   { key: "customers", label: "Customers", path: "/dashboard/admin/customers" },
-  { key: "appointments", label: "Appointments", path: "/dashboard/admin/appointments" },
+  {
+    key: "appointments",
+    label: "Appointments",
+    path: "/dashboard/admin/appointments",
+  },
   { key: "invoice", label: "Invoices", path: "/dashboard/admin/invoices" },
   { key: "parts", label: "Parts", path: "/dashboard/admin/parts" },
-  { key: "part-requests", label: "Part Requests", path: "/dashboard/admin/part-requests" },
+  {
+    key: "part-requests",
+    label: "Part Requests",
+    path: "/dashboard/admin/part-requests",
+  },
   { key: "vendors", label: "Vendors", path: "/dashboard/admin/vendors" },
+  { key: "reviews", label: "Reviews", path: "/dashboard/admin/reviews" },
   { key: "profile", label: "Profile", path: "/dashboard/admin/profile" },
 ];
 

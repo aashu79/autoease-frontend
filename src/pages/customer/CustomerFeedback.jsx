@@ -1,6 +1,17 @@
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Alert, Button, Input, Rate, Tabs, Typography, message } from "antd";
-import { useState } from "react";
+import {
+  Alert,
+  Button,
+  Input,
+  Rate,
+  Tabs,
+  Typography,
+  message,
+  List,
+  Card,
+  Spin,
+} from "antd";
+import { useState, useEffect } from "react";
 import { Controller, useForm } from "react-hook-form";
 import {
   FiCheckCircle,
@@ -8,11 +19,12 @@ import {
   FiSend,
   FiStar,
   FiTool,
+  FiList,
 } from "react-icons/fi";
 import { partRequestService, reviewService } from "../../api/services";
 import DashboardSection from "../../components/dashboard/DashboardSection";
 import FormError from "../../components/form/FormError";
-import { apiMessage } from "../../utils/api";
+import { apiMessage, listData } from "../../utils/api";
 import {
   fieldStatus,
   partRequestSchema,
@@ -290,6 +302,54 @@ function ReviewTab() {
   );
 }
 
+// ─── My Reviews Tab ────────────────────────────────────────────────────────────
+
+function MyReviewsTab() {
+  const [reviews, setReviews] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const loadReviews = async () => {
+      try {
+        const res = await reviewService.getMyReviews();
+        setReviews(listData(res));
+      } catch (err) {
+        message.error(apiMessage(err, "Failed to load your reviews."));
+      } finally {
+        setLoading(false);
+      }
+    };
+    void loadReviews();
+  }, []);
+
+  return (
+    <DashboardSection
+      title="My Reviews"
+      subtitle="Here are the reviews you have shared with us past times."
+    >
+      {loading ? (
+        <div className="grid place-items-center py-10">
+          <Spin size="large" />
+        </div>
+      ) : (
+        <List
+          grid={{ gutter: 16, column: 1 }}
+          dataSource={reviews}
+          renderItem={(item) => (
+            <List.Item>
+              <Card className="shadow-sm border border-slate-200">
+                <Rate disabled value={item.rating} className="!text-sm mb-2" />
+                <p className="text-slate-700 italic">"{item.comment}"</p>
+              </Card>
+            </List.Item>
+          )}
+          locale={{ emptyText: "You haven't written any reviews yet." }}
+        />
+      )}
+    </DashboardSection>
+  );
+}
+
 // ─── Main Page ───────────────────────────────────────────────────────────────
 
 const tabItems = [
@@ -312,6 +372,16 @@ const tabItems = [
       </span>
     ),
     children: <ReviewTab />,
+  },
+  {
+    key: "my-reviews",
+    label: (
+      <span className="flex items-center gap-2 font-semibold">
+        <FiList size={14} />
+        My Reviews
+      </span>
+    ),
+    children: <MyReviewsTab />,
   },
 ];
 

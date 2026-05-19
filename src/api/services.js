@@ -32,6 +32,8 @@ export const partRequestService = {
 
 export const reviewService = {
   createReview: (payload) => api.post("/api/reviews", payload),
+  getMyReviews: () => api.get("/api/reviews/my-reviews"),
+  getAllReviews: () => api.get("/api/reviews/all"),
 };
 
 export const partsService = {
@@ -71,4 +73,15 @@ export const invoiceService = {
   getHistory: () => api.get("/api/invoices/history"),
   getAllInvoices: () => api.get("/api/Invoice"),
   sendSalesInvoiceEmail: (id) => api.post(`/api/invoices/${id}/send-email`),
+};
+
+export const reportService = {
+  getDailyFinancial: () => api.get("/api/reports/financial/daily"),
+  getMonthlyFinancial: () => api.get("/api/reports/financial/monthly"),
+  getYearlyFinancial: () => api.get("/api/reports/financial/yearly"),
+
+  getRegularCustomers: () => api.get("/api/reports/customers/regulars"),
+  getHighSpendingCustomers: () =>
+    api.get("/api/reports/customers/high-spenders"),
+  getPendingCredits: () => api.get("/api/reports/customers/pending-credits"),
 };
