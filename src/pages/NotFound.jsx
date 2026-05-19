@@ -1,10 +1,22 @@
+import { Button, Result } from "antd";
+import { Link } from "react-router-dom";
+
 function NotFound() {
   return (
-    <section className="route-card not-found">
-      <span className="route-eyebrow">404</span>
-      <h1 className="route-title">Page not found</h1>
-      <p className="route-copy">The route you tried to open does not exist.</p>
-    </section>
+    <div className="grid min-h-screen place-items-center bg-slate-100 px-4">
+      <Result
+        status="404"
+        title="404"
+        subTitle="The page you requested does not exist."
+        extra={
+          <Link to="/">
+            <Button type="primary" size="large">
+              Back to home
+            </Button>
+          </Link>
+        }
+      />
+    </div>
   );
 }
 
